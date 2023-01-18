@@ -2,6 +2,7 @@ import './App.css';
 
 import { Box, Carousel, Grommet, Page } from 'grommet';
 
+import { ExList } from './components/ExList';
 import { JSExercises } from './components/JSExercises';
 
 function App() {
@@ -17,8 +18,9 @@ function App() {
               </Box>
             )
           }
-
-
+          <Box margin={"medium"}>
+            <ExList />
+          </Box>
         </Carousel>
       </Page>
     </Grommet >
