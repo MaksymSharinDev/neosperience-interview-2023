@@ -1,10 +1,27 @@
 import './App.css';
 
+import { Box, Carousel, Grommet, Page } from 'grommet';
+
+import { JSExercises } from './components/JSExercises';
+
 function App() {
+
   return (
-    <div className="App">
-      
-    </div>
+    <Grommet full>
+      <Page background="dark-1" kind={"narrow"} height={"100%"} justify='center' align='center' >
+        <Carousel>
+          {
+            [1, 2, 3, 4, 5].map(n =>
+              <Box margin={"medium"} pad={"small"} style={{ backgroundColor: "var(--code-editor-background)", borderRadius: "20px", overflow: "hidden", paddingRight: "10px" }}>
+                <JSExercises exNumber={n} />
+              </Box>
+            )
+          }
+
+
+        </Carousel>
+      </Page>
+    </Grommet >
   );
 }
 
