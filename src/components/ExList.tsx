@@ -1,5 +1,5 @@
 import { Add, FormClose } from 'grommet-icons'
-import { Box, Button, CheckBox, DataTable, SelectMultiple, Text, TextInput } from 'grommet';
+import { Box, Button, CheckBox, DataTable, NameValueList, SelectMultiple, Text, TextInput } from 'grommet';
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 //@ts-ignore
@@ -7,8 +7,8 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 type Item = {
     id: string,
     label: string,
-    value: boolean
-
+    value: boolean,
+    tags?: string[]
 }
 type ExListProps = {
     data?: {
@@ -37,8 +37,11 @@ const ExList = ({ data }: ExListProps) => {
 
     useEffect(() => {
         setChecked([...items.filter(obj => obj.value === true).map(obj => obj.id)])
+        setItems([...items.map(
+            item => ({ ...item, tags: ["all", "original"] })
+        )])
         // setOriginal(items.map(obj => obj.id))
-    }, [items])
+    }, [])
 
     const onCheck = useCallback(
         (checkedStutus: boolean, value: string) => {
@@ -80,7 +83,8 @@ const ExList = ({ data }: ExListProps) => {
                     _e => {
                         setItems([...items, {
                             ...newItem,
-                            id: `uuid-${items.length + 1}`
+                            id: `uuid-${items.length + 1}`,
+                            tags: ["all","new", "selected"]
                         }])
                     }
                 } />
@@ -89,7 +93,7 @@ const ExList = ({ data }: ExListProps) => {
     ), [items, newItem])
 
     const [selected, setSelected] = useState(["all"]);
-    const onRemoveSelection = (deleteOption: string) => setSelected(selected.filter((option) => deleteOption !== option && deleteOption !== "all"));
+    const onRemoveSelection = (deleteOption: string) => setSelected(selected.filter((option) => deleteOption !== option || deleteOption === "all"));
     const renderChip = (selection: string) => (
         <Button
             key={`chip-${selection}`
@@ -121,7 +125,9 @@ const ExList = ({ data }: ExListProps) => {
     return (
         <>
             <Box pad="small" align='center' direction='row' justify={'between'} >
-                <Text margin={"small"} >{" Filters: "}</Text>
+                <Text
+                    style={{ width: "15%" }}
+                >{" Filters: "}</Text>
                 <SelectMultiple
                     width={"80%"}
                     style={{ flexGrow: 3, minHeight: "40px" }}
@@ -134,13 +140,11 @@ const ExList = ({ data }: ExListProps) => {
                     )}
                     options={['all', 'original', 'new', "selected", "unselected", "done"]}
                     value={selected}
-                    onChange={({ value }) => {
+                    onChange={({ value }: { value: string[] }) => {
+                        if (!value.includes("all")) value.unshift("all")
                         setSelected([...value]);
                     }}
                 />
-
-
-
 
             </Box>
             <DataTable
