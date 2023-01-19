@@ -8,7 +8,6 @@ type Item = {
     id: string,
     label: string,
     value: boolean,
-    tags?: string[]
 }
 type ExListProps = {
     data?: {
@@ -17,7 +16,17 @@ type ExListProps = {
         items: Item[]
     } | undefined
 }
-
+enum FilterTag {
+    ALL = "all",
+    ORIGINAL = "original",
+    NEW = "new",
+    SELECTED = "selected",
+    UNSELECTED = "unselected",
+    DONE = "done"
+}
+type TagsState = {
+    [key: Item["id"]]: Set<FilterTag>
+}
 
 const ExList = ({ data }: ExListProps) => {
 
@@ -34,35 +43,65 @@ const ExList = ({ data }: ExListProps) => {
     const [checked, setChecked] = useState([] as string[]);
     const [done, setDone] = useState([] as string[])
     const [newItem, setNewItem] = useState({} as Item)
+    const [tags, setTags] = useState({} as TagsState)
+    const getSetWithout = (set: Set<any>, toDelete: any[]) => {
+        set = new Set(set); toDelete.map(v => set.delete(v)); return set
+    }
+
+    useEffect(() => {
+        setTags(
+            items.reduce(
+                (obj, item) => ({
+                    ...obj,
+                    [item.id]: new Set([FilterTag.ALL, FilterTag.ORIGINAL, item.value ? FilterTag.SELECTED : FilterTag.UNSELECTED],
+                    )
+                })
+                , {})
+        )
+    }, [])
 
     useEffect(() => {
         setChecked([...items.filter(obj => obj.value === true).map(obj => obj.id)])
-        setItems([...items.map(
-            item => ({ ...item, tags: ["all", "original"] })
-        )])
-        // setOriginal(items.map(obj => obj.id))
-    }, [])
+    }, [items])
+
 
     const onCheck = useCallback(
         (checkedStutus: boolean, value: string) => {
             if (done.includes(value)) return
             if (checkedStutus) {
                 setChecked([...checked, value]);
+                setTags({
+                    ...tags,
+                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), FilterTag.SELECTED] ) 
+                    // new Set(...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), ...[FilterTag.SELECTED])
+                })
             } else {
                 setChecked(checked.filter((item) => item !== value));
+                setTags({
+                    ...tags,
+                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.SELECTED]), FilterTag.UNSELECTED] ) 
+                })
             }
-        }, [checked, done])
+        }, [checked, done, tags])
 
     const onCheckAll =
         (event: ChangeEvent<HTMLInputElement>) => {
             console.log(event.target.checked)
             const ids = items.map((obj) => obj.id)
             if (event.target.checked) {
-                setChecked(
-                    ids.filter(id => !(done.includes(id) && !checked.includes(id))))
+                const toCheck = ids.filter(id => !(done.includes(id) && !checked.includes(id)))
+                setChecked(toCheck)
+                toCheck.forEach(value => setTags({
+                    ...tags,
+                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), FilterTag.SELECTED] ) 
+                }))
             } else {
-                // save done checked
-                setChecked(ids.filter(id => done.includes(id) && checked.includes(id)))
+                const toKeep = ids.filter(id => done.includes(id) && checked.includes(id))
+                setChecked(toKeep)
+                toKeep.forEach(value => setTags({
+                    ...tags,
+                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.SELECTED]), FilterTag.UNSELECTED] ) 
+                }))
             }
 
         }
@@ -71,29 +110,50 @@ const ExList = ({ data }: ExListProps) => {
         (event: ChangeEvent<HTMLInputElement>, value: string) => {
             if (Boolean(event.target.checked)) {
                 setDone([...done, value]);
+                setTags({
+                    ...tags,
+                    [`${value}`]: new Set([...tags[`${value}`], ...[FilterTag.DONE]])
+                })
             } else {
                 setDone(done.filter((item) => item !== value));
+                setTags({
+                    ...tags,
+                    [`${value}`]: new Set(...getSetWithout(tags[`${value}`], [FilterTag.DONE]))
+                })
             }
-        }, [done])
+        }, [done, tags])
 
     const AddBtn = useMemo(() => (
         <Box align='center' direction='row' pad="small" >
             <Box round="full" overflow="hidden" >
                 <Button primary size='small' icon={<Add />} onClick={
                     _e => {
+                        const id = `uuid-${items.length + 1}`
                         setItems([...items, {
-                            ...newItem,
-                            id: `uuid-${items.length + 1}`,
-                            tags: ["all","new", "selected"]
+                            ...newItem, id
                         }])
+                        setTags({
+                            ...tags,
+                            [`${id}`]: new Set([
+                                FilterTag.ALL,
+                                FilterTag.NEW,
+                                FilterTag.SELECTED
+                            ])
+                        })
                     }
                 } />
             </Box>
         </Box>
-    ), [items, newItem])
+    ), [items, newItem, tags])
 
-    const [selected, setSelected] = useState(["all"]);
-    const onRemoveSelection = (deleteOption: string) => setSelected(selected.filter((option) => deleteOption !== option || deleteOption === "all"));
+    const [selectedTags, setSelectedTags] = useState([FilterTag.ALL]);
+    const onRemoveSelection = (deleteOption: string) => setSelectedTags(selectedTags.filter((option) => deleteOption !== option || deleteOption === FilterTag.ALL));
+    const filteredItems = useMemo(() =>
+        items.filter(item =>
+            selectedTags
+                .reduce((visibility, tag) =>
+                    (tags[item.id] && tags[item.id].has(tag)) && visibility, true))
+        , [items, tags, selectedTags])
     const renderChip = (selection: string) => (
         <Button
             key={`chip-${selection}`
@@ -129,7 +189,6 @@ const ExList = ({ data }: ExListProps) => {
                     style={{ width: "15%" }}
                 >{" Filters: "}</Text>
                 <SelectMultiple
-                    width={"80%"}
                     style={{ flexGrow: 3, minHeight: "40px" }}
                     valueLabel={option => (
                         <Box wrap direction="row" width="medium">{
@@ -138,11 +197,12 @@ const ExList = ({ data }: ExListProps) => {
                             )
                         }</Box>
                     )}
-                    options={['all', 'original', 'new', "selected", "unselected", "done"]}
-                    value={selected}
-                    onChange={({ value }: { value: string[] }) => {
-                        if (!value.includes("all")) value.unshift("all")
-                        setSelected([...value]);
+                    options={Object.values(FilterTag)}
+                    value={selectedTags}
+                    onChange={({ value }: { value: FilterTag[] }) => {
+                        if (!value.includes(FilterTag.ALL)) value.unshift(FilterTag.ALL)
+                        setSelectedTags([...value]);
+
                     }}
                 />
 
@@ -226,7 +286,7 @@ const ExList = ({ data }: ExListProps) => {
                             label: "",
                             value: true
                         },
-                        ...items
+                        ...filteredItems
                     ]
 
                 }
