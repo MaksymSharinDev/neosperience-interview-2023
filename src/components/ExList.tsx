@@ -1,8 +1,8 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckBox, DataTable } from 'grommet';
+import { CheckBox, DataTable, Text } from 'grommet';
 
-import { Add } from "grommet-icons"
-import { randomUUID } from 'crypto';
+//@ts-ignore
+
 
 type ExListProps = {
     data?: {
@@ -16,7 +16,6 @@ type ExListProps = {
     } | undefined
 }
 const ExList = ({ data } = { data: undefined } as ExListProps) => {
-    const [checked, setChecked] = useState([] as string[]);
 
     const list = useMemo(() => (data || {
         "id": "list-uuid-1",
@@ -28,45 +27,88 @@ const ExList = ({ data } = { data: undefined } as ExListProps) => {
         ]
     }), [data])
 
+    const [checked, setChecked] = useState([] as string[]);
+    const [done, setDone] = useState([] as string[])
     useEffect(() => {
         setChecked([...list.items.filter(obj => obj.value === true).map(obj => obj.id)])
-    }, [list])
+    }, [])
 
     const onCheck = useCallback(
-        (event: ChangeEvent<HTMLInputElement>, value: string) => {
-            if (Boolean(event.target.checked)) {
+        (checkedStutus: boolean, value: string) => {
+            if (done.includes(value)) return
+            if (checkedStutus) {
                 setChecked([...checked, value]);
             } else {
                 setChecked(checked.filter((item) => item !== value));
             }
-        }, [checked])
+        }, [checked, done])
+
+    const onCheckAll =
+        (event: ChangeEvent<HTMLInputElement>) => {
+            console.log(event.target.checked)
+            const ids = list.items.map((obj) => obj.id)
+            if (event.target.checked) {
+                setChecked(
+                    ids.filter(id => !(done.includes(id) && !checked.includes(id))))
+            } else {
+                // save done checked
+                setChecked(ids.filter(id => done.includes(id) && checked.includes(id)))
+            }
+
+        }
 
 
-    const onCheckAll = useCallback(
-        (event: ChangeEvent<HTMLInputElement>) =>
-            (setChecked(event.target.checked ? list.items.map((obj) => obj.id) : []))
-        , [list.items])
+    const onDone = useCallback(
+        (event: ChangeEvent<HTMLInputElement>, value: string) => {
+            if (Boolean(event.target.checked)) {
+                setDone([...done, value]);
+            } else {
+                setDone(done.filter((item) => item !== value));
+            }
+        }, [done])
+
 
 
     return (
         <DataTable
             columns={[
                 {
+                    property: "id",
+                    size: "20%"
+                },
+                {
                     property: "checkbox",
-                    render: ({ id, label, value }) => (
+                    size: "5%",
+                    render: ({ id }) => (
                         <CheckBox
                             key={id}
                             checked={checked.indexOf(id) !== -1}
-                            onChange={(e) => { onCheck(e, id) }}
+                            onChange={(e) => { onCheck(e.target.checked, id) }}
                         />
                     ),
                     header: (
                         <CheckBox
-                            checked={checked.length === list.items.length}
-                            indeterminate={
-                                checked.length > 0 && checked.length < list.items.length
-                            }
+                            checked={checked.length >= list.items.length - done.length }
                             onChange={onCheckAll}
+                        />
+                    ),
+                    sortable: false,
+                },
+                {
+                    property: "label",
+                    render: ({ id, label }) =>
+                        done.includes(id) ?
+                            (<Text color={"green"}>{label}</Text>) :
+                            (<Text>{label}</Text>)
+                },
+                {
+                    property: "done",
+                    size: "5%",
+                    render: ({ id }) => (
+                        <CheckBox
+                            key={id}
+                            checked={done.indexOf(id) !== -1}
+                            onChange={(e) => { onDone(e, id) }}
                         />
                     ),
                     sortable: false,
