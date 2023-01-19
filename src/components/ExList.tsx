@@ -1,6 +1,6 @@
-import { Add, FormClose } from 'grommet-icons'
+import { Add, Checkbox, FormClose } from 'grommet-icons';
 import { Box, Button, CheckBox, DataTable, NameValueList, SelectMultiple, Text, TextInput } from 'grommet';
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, ReactHTMLElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 //@ts-ignore
 
@@ -39,11 +39,22 @@ const ExList = ({ data }: ExListProps) => {
             { "id": "uuid-3", label: "item 1", value: true }
         ]
     }), [data])
+
     const [items, setItems] = useState(list.items)
+    const [tags, setTags] = useState({} as TagsState)
+    const [selectedTags, setSelectedTags] = useState([FilterTag.ALL]);
+    const filteredItems = useMemo(() => items.filter(item =>
+        selectedTags.reduce((visibility, tag) =>
+            (tags[item.id] && (tags[item.id].has(tag)) && visibility), true))
+        , [items, tags, selectedTags])
     const [checked, setChecked] = useState([] as string[]);
     const [done, setDone] = useState([] as string[])
     const [newItem, setNewItem] = useState({} as Item)
-    const [tags, setTags] = useState({} as TagsState)
+
+
+    const checkBoxRefs = useRef({} as {
+        [key: Item["id"]]: HTMLInputElement
+    })
     const getSetWithout = (set: Set<any>, toDelete: any[]) => {
         set = new Set(set); toDelete.map(v => set.delete(v)); return set
     }
@@ -58,7 +69,7 @@ const ExList = ({ data }: ExListProps) => {
                 })
                 , {})
         )
-    }, [])
+    }, [items])
 
     useEffect(() => {
         setChecked([...items.filter(obj => obj.value === true).map(obj => obj.id)])
@@ -67,58 +78,41 @@ const ExList = ({ data }: ExListProps) => {
 
     const onCheck = useCallback(
         (checkedStutus: boolean, value: string) => {
+            console.log("check trigger")
             if (done.includes(value)) return
             if (checkedStutus) {
                 setChecked([...checked, value]);
                 setTags({
                     ...tags,
-                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), FilterTag.SELECTED] ) 
+                    [`${value}`]: new Set([
+                        ...getSetWithout(
+                            new Set(tags[`${value}`]),
+                            [FilterTag.UNSELECTED]),
+                        FilterTag.SELECTED])
                     // new Set(...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), ...[FilterTag.SELECTED])
                 })
             } else {
                 setChecked(checked.filter((item) => item !== value));
                 setTags({
                     ...tags,
-                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.SELECTED]), FilterTag.UNSELECTED] ) 
+                    [`${value}`]: new Set([...getSetWithout(new Set(tags[`${value}`]), [FilterTag.SELECTED]), FilterTag.UNSELECTED])
                 })
             }
         }, [checked, done, tags])
 
-    const onCheckAll =
-        (event: ChangeEvent<HTMLInputElement>) => {
-            console.log(event.target.checked)
-            const ids = items.map((obj) => obj.id)
-            if (event.target.checked) {
-                const toCheck = ids.filter(id => !(done.includes(id) && !checked.includes(id)))
-                setChecked(toCheck)
-                toCheck.forEach(value => setTags({
-                    ...tags,
-                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), FilterTag.SELECTED] ) 
-                }))
-            } else {
-                const toKeep = ids.filter(id => done.includes(id) && checked.includes(id))
-                setChecked(toKeep)
-                toKeep.forEach(value => setTags({
-                    ...tags,
-                    [`${value}`]: new Set( [...getSetWithout(tags[`${value}`], [FilterTag.SELECTED]), FilterTag.UNSELECTED] ) 
-                }))
-            }
-
-        }
-
     const onDone = useCallback(
-        (event: ChangeEvent<HTMLInputElement>, value: string) => {
+        (event: ChangeEvent<HTMLInputElement>, id: string) => {
             if (Boolean(event.target.checked)) {
-                setDone([...done, value]);
+                setDone([...done, id]);
                 setTags({
                     ...tags,
-                    [`${value}`]: new Set([...tags[`${value}`], ...[FilterTag.DONE]])
+                    [`${id}`]: new Set([...tags[`${id}`], FilterTag.DONE])
                 })
             } else {
-                setDone(done.filter((item) => item !== value));
+                setDone(done.filter((item) => item !== id));
                 setTags({
                     ...tags,
-                    [`${value}`]: new Set(...getSetWithout(tags[`${value}`], [FilterTag.DONE]))
+                    [`${id}`]: getSetWithout(new Set(tags[`${id}`]), [FilterTag.DONE])
                 })
             }
         }, [done, tags])
@@ -146,14 +140,9 @@ const ExList = ({ data }: ExListProps) => {
         </Box>
     ), [items, newItem, tags])
 
-    const [selectedTags, setSelectedTags] = useState([FilterTag.ALL]);
+
     const onRemoveSelection = (deleteOption: string) => setSelectedTags(selectedTags.filter((option) => deleteOption !== option || deleteOption === FilterTag.ALL));
-    const filteredItems = useMemo(() =>
-        items.filter(item =>
-            selectedTags
-                .reduce((visibility, tag) =>
-                    (tags[item.id] && tags[item.id].has(tag)) && visibility, true))
-        , [items, tags, selectedTags])
+
     const renderChip = (selection: string) => (
         <Button
             key={`chip-${selection}`
@@ -223,15 +212,24 @@ const ExList = ({ data }: ExListProps) => {
                         render: ({ id }) => typeof id === "string" ? (
                             <CheckBox
                                 key={id}
+                                ref={element => { if (element !== null) checkBoxRefs.current[id] = element }}
                                 checked={checked.indexOf(id) !== -1}
                                 onChange={(e) => { onCheck(e.target.checked, id) }}
+
                             />
                         ) : (
                             <CheckBox disabled checked />
                         ),
                         header: (
                             <CheckBox
-                                onChange={onCheckAll}
+                                onChange={ e => {
+                                    for (let checkbox of Object.values(checkBoxRefs.current)) {
+                                        let el = checkbox;
+                                        el.setAttribute("checked", e.target.value); // Just a small change as value will most of the time be a string (even for type="number" input);
+                                        el.dispatchEvent(new Event("change", { bubbles: true }));
+                                    }
+                                }
+                                }
                             />
                         ),
                         sortable: false,
