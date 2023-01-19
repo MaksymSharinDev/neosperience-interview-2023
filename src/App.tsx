@@ -18,7 +18,7 @@ function App() {
               </Box>
             )
           }
-          <Box margin={"medium"}>
+          <Box margin={"medium"} >
             <ExList />
           </Box>
         </Carousel>
