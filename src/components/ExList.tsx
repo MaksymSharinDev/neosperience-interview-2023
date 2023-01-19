@@ -88,7 +88,6 @@ const ExList = ({ data } = { data: undefined } as ExListProps) => {
                     ),
                     header: (
                         <CheckBox
-                            checked={checked.length >= list.items.length - done.length }
                             onChange={onCheckAll}
                         />
                     ),
@@ -98,7 +97,13 @@ const ExList = ({ data } = { data: undefined } as ExListProps) => {
                     property: "label",
                     render: ({ id, label }) =>
                         done.includes(id) ?
-                            (<Text color={"green"}>{label}</Text>) :
+                            (<Text
+                                style={{
+                                    backgroundColor: "black",
+                                    borderRadius: "10px",
+                                    paddingLeft: "10px"
+                                }}
+                            >{label}</Text>) :
                             (<Text>{label}</Text>)
                 },
                 {
