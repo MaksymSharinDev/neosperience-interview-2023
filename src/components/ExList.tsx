@@ -7,7 +7,7 @@ import { ChangeEvent, ReactHTMLElement, useCallback, useEffect, useMemo, useRef,
 type Item = {
     id: string,
     label: string,
-    value: boolean,
+    value: boolean
 }
 type ExListProps = {
     data?: {
@@ -39,110 +39,66 @@ const ExList = ({ data }: ExListProps) => {
             { "id": "uuid-3", label: "item 1", value: true }
         ]
     }), [data])
-
     const [items, setItems] = useState(list.items)
-    const [tags, setTags] = useState({} as TagsState)
-    const [selectedTags, setSelectedTags] = useState([FilterTag.ALL]);
-    const filteredItems = useMemo(() => items.filter(item =>
-        selectedTags.reduce((visibility, tag) =>
-            (tags[item.id] && (tags[item.id].has(tag)) && visibility), true))
-        , [items, tags, selectedTags])
     const [checked, setChecked] = useState([] as string[]);
     const [done, setDone] = useState([] as string[])
     const [newItem, setNewItem] = useState({} as Item)
-
-
-    const checkBoxRefs = useRef({} as {
-        [key: Item["id"]]: HTMLInputElement
-    })
-    const getSetWithout = (set: Set<any>, toDelete: any[]) => {
-        set = new Set(set); toDelete.map(v => set.delete(v)); return set
-    }
-
-    useEffect(() => {
-        setTags(
-            items.reduce(
-                (obj, item) => ({
-                    ...obj,
-                    [item.id]: new Set([FilterTag.ALL, FilterTag.ORIGINAL, item.value ? FilterTag.SELECTED : FilterTag.UNSELECTED],
-                    )
-                })
-                , {})
-        )
-    }, [items])
 
     useEffect(() => {
         setChecked([...items.filter(obj => obj.value === true).map(obj => obj.id)])
     }, [items])
 
-
     const onCheck = useCallback(
         (checkedStutus: boolean, value: string) => {
-            console.log("check trigger")
             if (done.includes(value)) return
             if (checkedStutus) {
                 setChecked([...checked, value]);
-                setTags({
-                    ...tags,
-                    [`${value}`]: new Set([
-                        ...getSetWithout(
-                            new Set(tags[`${value}`]),
-                            [FilterTag.UNSELECTED]),
-                        FilterTag.SELECTED])
-                    // new Set(...getSetWithout(tags[`${value}`], [FilterTag.UNSELECTED]), ...[FilterTag.SELECTED])
-                })
             } else {
                 setChecked(checked.filter((item) => item !== value));
-                setTags({
-                    ...tags,
-                    [`${value}`]: new Set([...getSetWithout(new Set(tags[`${value}`]), [FilterTag.SELECTED]), FilterTag.UNSELECTED])
-                })
             }
-        }, [checked, done, tags])
+        }, [checked, done])
+
+    const onCheckAll =
+        (event: ChangeEvent<HTMLInputElement>) => {
+            console.log(event.target.checked)
+            const ids = items.map((obj) => obj.id)
+            if (event.target.checked) {
+                setChecked(
+                    ids.filter(id => !(done.includes(id) && !checked.includes(id))))
+            } else {
+                // save done checked
+                setChecked(ids.filter(id => done.includes(id) && checked.includes(id)))
+            }
+
+        }
 
     const onDone = useCallback(
         (event: ChangeEvent<HTMLInputElement>, id: string) => {
             if (Boolean(event.target.checked)) {
                 setDone([...done, id]);
-                setTags({
-                    ...tags,
-                    [`${id}`]: new Set([...tags[`${id}`], FilterTag.DONE])
-                })
             } else {
                 setDone(done.filter((item) => item !== id));
-                setTags({
-                    ...tags,
-                    [`${id}`]: getSetWithout(new Set(tags[`${id}`]), [FilterTag.DONE])
-                })
+
             }
-        }, [done, tags])
+        }, [done])
 
     const AddBtn = useMemo(() => (
         <Box align='center' direction='row' pad="small" >
             <Box round="full" overflow="hidden" >
                 <Button primary size='small' icon={<Add />} onClick={
                     _e => {
-                        const id = `uuid-${items.length + 1}`
                         setItems([...items, {
-                            ...newItem, id
+                            ...newItem,
+                            id: `uuid-${items.length + 1}`
                         }])
-                        setTags({
-                            ...tags,
-                            [`${id}`]: new Set([
-                                FilterTag.ALL,
-                                FilterTag.NEW,
-                                FilterTag.SELECTED
-                            ])
-                        })
                     }
                 } />
             </Box>
         </Box>
-    ), [items, newItem, tags])
+    ), [items, newItem])
 
-
-    const onRemoveSelection = (deleteOption: string) => setSelectedTags(selectedTags.filter((option) => deleteOption !== option || deleteOption === FilterTag.ALL));
-
+    const [selected, setSelected] = useState([FilterTag.ALL]);
+    const onRemoveSelection = (deleteOption: string) => setSelected(selected.filter((option) => deleteOption !== option && deleteOption !== "all"));
     const renderChip = (selection: string) => (
         <Button
             key={`chip-${selection}`
@@ -187,11 +143,9 @@ const ExList = ({ data }: ExListProps) => {
                         }</Box>
                     )}
                     options={Object.values(FilterTag)}
-                    value={selectedTags}
-                    onChange={({ value }: { value: FilterTag[] }) => {
-                        if (!value.includes(FilterTag.ALL)) value.unshift(FilterTag.ALL)
-                        setSelectedTags([...value]);
-
+                    value={selected}
+                    onChange={({ value }) => {
+                        setSelected([...value]);
                     }}
                 />
 
@@ -212,24 +166,15 @@ const ExList = ({ data }: ExListProps) => {
                         render: ({ id }) => typeof id === "string" ? (
                             <CheckBox
                                 key={id}
-                                ref={element => { if (element !== null) checkBoxRefs.current[id] = element }}
                                 checked={checked.indexOf(id) !== -1}
                                 onChange={(e) => { onCheck(e.target.checked, id) }}
-
                             />
                         ) : (
                             <CheckBox disabled checked />
                         ),
                         header: (
                             <CheckBox
-                                onChange={ e => {
-                                    for (let checkbox of Object.values(checkBoxRefs.current)) {
-                                        let el = checkbox;
-                                        el.setAttribute("checked", e.target.value); // Just a small change as value will most of the time be a string (even for type="number" input);
-                                        el.dispatchEvent(new Event("change", { bubbles: true }));
-                                    }
-                                }
-                                }
+                                onChange={onCheckAll}
                             />
                         ),
                         sortable: false,
@@ -284,7 +229,7 @@ const ExList = ({ data }: ExListProps) => {
                             label: "",
                             value: true
                         },
-                        ...filteredItems
+                        ...items
                     ]
 
                 }
