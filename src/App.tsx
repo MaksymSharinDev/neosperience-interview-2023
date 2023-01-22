@@ -13,7 +13,9 @@ function App() {
         <Carousel>
           {
             [1, 2, 3, 4, 5].map(n =>
-              <Box margin={"medium"} pad={"small"} style={{ backgroundColor: "var(--code-editor-background)", borderRadius: "20px", overflow: "hidden", paddingRight: "10px" }}>
+              <Box
+              key={`s-exercise-${n}`}
+              margin={"medium"} pad={"small"} style={{ backgroundColor: "var(--code-editor-background)", borderRadius: "20px", overflow: "hidden", paddingRight: "10px" }}>
                 <JSExercises exNumber={n} />
               </Box>
             )

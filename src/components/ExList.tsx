@@ -1,20 +1,27 @@
 import { Add, FormClose } from 'grommet-icons';
-import { Box, Button, CheckBox, DataTable, SelectMultiple, Text, TextInput } from 'grommet';
+import { Box, Button, CheckBox, DataTable, Heading, SelectMultiple, Text, TextInput } from 'grommet';
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 //@ts-ignore
 
-type Item = {
-    id: string,
-    label: string,
-    value: boolean
+class Item {
+    id: string = ""
+    label: string = ""
+    value: boolean = true
+}
+class ItemRow extends Item {
+    addItemElement?: Element
+    checkboxElement?: Element
+    labelElement?: Element
+    doneElement?: Element
 }
 type ExListProps = {
-    data?: {
-        id: string,
-        name: string,
-        items: Item[]
-    } | undefined
+    uuid?: string
+}
+class ListObject {
+    id: string = ""
+    name: string = ""
+    items: Item[] = []
 }
 enum FilterTag {
     ALL = "all",
@@ -24,17 +31,10 @@ enum FilterTag {
     UNSELECTED = "unselected",
     DONE = "done"
 }
-const ExList = ({ data }: ExListProps) => {
 
-    const list = useMemo(() => (data || {
-        "id": "list-uuid-1",
-        "name": "My list name",
-        "items": [
-            { "id": "uuid-1", label: "item 1", value: true },
-            { "id": "uuid-2", label: "item 1", value: false },
-            { "id": "uuid-3", label: "item 1", value: true }
-        ]
-    }), [data])
+const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
+
+    const [list, setList] = useState(new ListObject())
 
     const [items, setItems] = useState(list.items)
     const itemsIds = useMemo(() => items.map((obj) => obj.id), [items])
@@ -62,6 +62,22 @@ const ExList = ({ data }: ExListProps) => {
             )
         }
     }, [selectedFilter])
+
+    useEffect(() => {
+        (async () => {
+            if (uuid) {
+                const res = await fetch(`/list/${uuid}.json`, {
+                    method: "GET",
+                    headers: {
+                        'Accept': "application/json"
+                    }
+                })
+                const list = await res.json() as ListObject
+                setList(list)
+                setItems(list.items)
+            }
+        })()
+    }, [uuid])
 
     useEffect(() => {
         const selectedItems = items.filter(item => item.value === true).map(item => item.id)
@@ -132,7 +148,6 @@ const ExList = ({ data }: ExListProps) => {
                 }
                 compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.SELECTED)
             }
-        console.log(compatibleFilters)
         return compatibleFilters
     }, [selectedFilter])
 
@@ -207,6 +222,7 @@ const ExList = ({ data }: ExListProps) => {
 
     return (
         <>
+            <Heading size={'small'} level={3} textAlign='center' > {list.name} </Heading>
             <Box pad="small" align='center' direction='row' justify={'between'} >
                 <Text
                     style={{ width: "15%" }}
@@ -230,74 +246,65 @@ const ExList = ({ data }: ExListProps) => {
                 />
 
             </Box>
+
             <DataTable
                 columns={[
                     {
                         property: "id",
                         size: "20%",
                         align: "center",
-                        header: (
-                            <Text>{"uuid"}</Text>
-                        )
+                        header: <Text>{"uuid"}</Text>,
+                        render: ({ addItemElement, id }) =>
+                            <>{
+                                addItemElement ||
+                                <Text>{id}</Text>
+                            }</>
                     },
                     {
                         property: "checkbox",
                         size: "5%",
-                        header: (
-                            <CheckBox
-                                onChange={onCheckAll}
-                            />
-                        ),
-                        render: ({ id }) =>
-                            typeof id === "string" ? (
+                        header: <CheckBox onChange={onCheckAll} />,
+                        render: ({ checkboxElement, id }) =>
+                            <>{
+                                checkboxElement ||
                                 <CheckBox
                                     key={id}
                                     checked={isChecked(id)}
                                     onChange={(e) => { onCheck(e.target.checked, id) }}
                                 />
-                            ) : (
-                                <CheckBox disabled checked />
-                            ),
-
+                            }</>,
                         sortable: false,
                     },
                     {
                         property: "label",
                         header: <Text>{"Task"}</Text>,
-                        render: ({ id, label }) =>
-                            typeof id === "string" ?
-                                isDone(id) ?
-                                    (<Text
+                        render: ({ id, label, labelElement }) =>
+                            <>{
+                                labelElement ||
+                                    isDone(id)
+                                    ? <Text
                                         style={{
                                             backgroundColor: "black",
                                             borderRadius: "10px",
                                             paddingLeft: "10px"
                                         }}
-                                    >{label}</Text>) :
-                                    (<Text>{label}</Text>) :
-                                (<TextInput
-                                    onChange={(e) => {
-                                        setNewItem({
-                                            ...newItem,
-                                            label: e.target.value,
-                                            value: true
-                                        })
-                                    }}
-                                />)
+                                    >{label}</Text>
+                                    : (<Text>{label}</Text>)
+                            }</>
                     },
                     {
                         property: "done",
                         size: "5%",
                         header: (<Text>{"Done"}</Text>),
-                        render: ({ id }) => (
-                            typeof id === "string" ?
-                                (<CheckBox
+                        render: ({ id, doneElement }) =>
+                            <>{
+                                doneElement ||
+                                <CheckBox
                                     key={id}
                                     checked={isDone(id)}
                                     onChange={(e) => { onDone(e, id) }}
-                                />) :
-                                <CheckBox disabled checked={false} />
-                        ),
+                                />
+                            }</>,
                         sortable: false,
                         align: "center"
                     },
@@ -305,12 +312,20 @@ const ExList = ({ data }: ExListProps) => {
                 data={
                     [
                         {
-                            id: AddBtn,
-                            label: "",
-                            value: true
+                            addItemElement: AddBtn,
+                            checkboxElement: <CheckBox disabled checked />,
+                            labelElement: <TextInput
+                                onChange={(e) => {
+                                    setNewItem({
+                                        ...newItem,
+                                        label: e.target.value,
+                                        value: true
+                                    })
+                                }} />,
+                            doneElement: <CheckBox disabled checked={false} />
                         },
                         ...getFilteredItems()
-                    ]
+                    ] as ItemRow[]
 
                 }
             />

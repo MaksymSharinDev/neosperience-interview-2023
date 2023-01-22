@@ -1,0 +1,9 @@
+{
+    "id": "list-uuid-1",
+    "name": "My list name",
+    "items": [
+        { "id": "uuid-1", "label": "item 1", "value": true },
+        { "id": "uuid-2", "label": "item 1", "value": false },
+        { "id": "uuid-3", "label": "item 1", "value": true }
+    ]
+}
