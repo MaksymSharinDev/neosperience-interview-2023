@@ -24,10 +24,6 @@ enum FilterTag {
     UNSELECTED = "unselected",
     DONE = "done"
 }
-type TagsState = {
-    [key: Item["id"]]: Set<FilterTag>
-}
-
 const ExList = ({ data }: ExListProps) => {
 
     const list = useMemo(() => (data || {
@@ -42,9 +38,12 @@ const ExList = ({ data }: ExListProps) => {
 
     const [items, setItems] = useState(list.items)
     const itemsIds = useMemo(() => items.map((obj) => obj.id), [items])
+    const isOriginal = useCallback((id: Item["id"]) => items.filter(() => list?.items.map(item => item.id).includes(id)), [items, list])
+    const isNew = useCallback((id: Item["id"]) => !isOriginal(id), [isOriginal])
 
     const [checked, setChecked] = useState([] as Item["id"][]);
     const isChecked = useCallback((id: Item["id"]) => checked.includes(id), [checked])
+    const isUnchecked = useCallback((id: Item["id"]) => !isChecked(id), [isChecked])
     const checkedExclude = useCallback((id: Item["id"]) => checked.filter((checkedItemId) => checkedItemId !== id), [checked])
 
     const [done, setDone] = useState([] as Item["id"][])
@@ -99,6 +98,69 @@ const ExList = ({ data }: ExListProps) => {
             }
         }, [done, doneExclude])
 
+    const compatibleFilters = useMemo(() => {
+        const filters: FilterTag[] = Object.values(FilterTag)
+        let compatibleFilters = filters as FilterTag[]
+        if (selectedFilter.length === 0) {
+            setSelectedFilter([FilterTag.ALL])
+            compatibleFilters = filters.filter(tag => tag !== FilterTag.ALL)
+        }
+        if (selectedFilter.includes(FilterTag.ALL) && selectedFilter.length === 1) {
+            compatibleFilters = filters.filter(tag => tag !== FilterTag.ALL)
+        } else if (selectedFilter.includes(FilterTag.ALL) && selectedFilter.length > 1) {
+            setSelectedFilter([FilterTag.ALL])
+            compatibleFilters = filters.filter(tag => tag !== FilterTag.ALL)
+        }
+        if (selectedFilter.includes(FilterTag.DONE)) { }
+        if (selectedFilter.includes(FilterTag.ORIGINAL)) {
+            compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.NEW)
+        } else
+            if (selectedFilter.includes(FilterTag.NEW)) {
+                if (selectedFilter.includes(FilterTag.ORIGINAL)) {
+                    setSelectedFilter(selectedFilter.filter(tag => tag !== FilterTag.NEW))
+                    return compatibleFilters
+                }
+                compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.ORIGINAL)
+            }
+        if (selectedFilter.includes(FilterTag.SELECTED)) {
+            compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.UNSELECTED)
+        } else
+            if (selectedFilter.includes(FilterTag.UNSELECTED)) {
+                if (selectedFilter.includes(FilterTag.SELECTED)) {
+                    setSelectedFilter(selectedFilter.filter(tag => tag !== FilterTag.UNSELECTED))
+                    return compatibleFilters
+                }
+                compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.SELECTED)
+            }
+        console.log(compatibleFilters)
+        return compatibleFilters
+    }, [selectedFilter])
+
+    const getFilteredItems = useCallback(() => {
+        let filteredItems: Item[] = items
+        selectedFilter.forEach(filter => {
+            switch (filter) {
+                case FilterTag.ALL: break;
+                case FilterTag.DONE:
+                    filteredItems = filteredItems.filter(item => isDone(item.id))
+                    break;
+                case FilterTag.ORIGINAL:
+                    filteredItems = filteredItems.filter(item => isOriginal(item.id))
+                    break;
+                case FilterTag.NEW:
+                    filteredItems = filteredItems.filter(item => isNew(item.id))
+                    break;
+                case FilterTag.SELECTED:
+                    filteredItems = filteredItems.filter(item => isChecked(item.id))
+                    break;
+                case FilterTag.UNSELECTED:
+                    filteredItems = filteredItems.filter(item => isUnchecked(item.id))
+                    break;
+
+            }
+        })
+        return filteredItems
+    }, [items, selectedFilter, isOriginal, isNew, isChecked, isUnchecked, isDone])
 
     const AddBtn = useMemo(() => (
         <Box align='center' direction='row' pad="small" >
@@ -115,7 +177,7 @@ const ExList = ({ data }: ExListProps) => {
         </Box>
     ), [items, newItem])
 
-    const renderChip = (selection: string) => (
+    const renderChip = useCallback((selection: string) => (
         <Button
             key={`chip-${selection}`
             }
@@ -141,7 +203,7 @@ const ExList = ({ data }: ExListProps) => {
                 </Box >
             </Box >
         </Button >
-    )
+    ), [onDeselectFilter])
 
     return (
         <>
@@ -154,13 +216,15 @@ const ExList = ({ data }: ExListProps) => {
                     valueLabel={option => (
                         <Box wrap direction="row" width="medium">{
                             option.map((i: string) =>
-                                renderChip(i)
+                                [...compatibleFilters, FilterTag.ALL].includes(i as FilterTag) && renderChip(i)
                             )
                         }</Box>
                     )}
-                    options={Object.values(FilterTag)}
+                    options={compatibleFilters}
                     value={selectedFilter}
-                    onChange={({ value }) => {
+                    onChange={({ value }: {
+                        value: FilterTag[]
+                    }) => {
                         setSelectedFilter([...value]);
                     }}
                 />
@@ -245,7 +309,7 @@ const ExList = ({ data }: ExListProps) => {
                             label: "",
                             value: true
                         },
-                        ...items
+                        ...getFilteredItems()
                     ]
 
                 }
