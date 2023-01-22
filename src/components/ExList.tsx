@@ -1,8 +1,8 @@
 import { Add, FormClose } from 'grommet-icons';
 import { Box, Button, CheckBox, DataTable, Heading, SelectMultiple, Text, TextInput } from 'grommet';
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-//@ts-ignore
+import { Scrollbars } from 'react-custom-scrollbars-2';
 
 class Item {
     id: string = ""
@@ -34,11 +34,14 @@ enum FilterTag {
 
 const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
 
+
+    const tableBoxRef = useRef(null)
+
     const [list, setList] = useState(new ListObject())
 
-    const [items, setItems] = useState(list.items)
+    const [items, setItems] = useState([] as Item[])
     const itemsIds = useMemo(() => items.map((obj) => obj.id), [items])
-    const isOriginal = useCallback((id: Item["id"]) => items.filter(() => list?.items.map(item => item.id).includes(id)), [items, list])
+    const isOriginal = useCallback((id: Item["id"]) => list.items.map(item => item.id).includes(id), [list])
     const isNew = useCallback((id: Item["id"]) => !isOriginal(id), [isOriginal])
 
     const [checked, setChecked] = useState([] as Item["id"][]);
@@ -51,7 +54,6 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
     const doneExclude = useCallback((id: Item["id"]) => done.filter((doneItemId) => doneItemId !== id), [done])
 
     const [newItem, setNewItem] = useState({} as Item)
-
     const [selectedFilter, setSelectedFilter] = useState([FilterTag.ALL]);
     const onDeselectFilter = useCallback((filterToDisable: string) => {
         if (filterToDisable !== FilterTag.ALL) {
@@ -84,6 +86,7 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
         setChecked(selectedItems)
     }, [items])
 
+
     const onCheck = useCallback(
         (checkedStutus: boolean, id: string) => {
             if (isDone(id)) return
@@ -114,7 +117,7 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
             }
         }, [done, doneExclude])
 
-    const compatibleFilters = useMemo(() => {
+    const compatibleFilters = useMemo((): FilterTag[] => {
         const filters: FilterTag[] = Object.values(FilterTag)
         let compatibleFilters = filters as FilterTag[]
         if (selectedFilter.length === 0) {
@@ -133,8 +136,7 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
         } else
             if (selectedFilter.includes(FilterTag.NEW)) {
                 if (selectedFilter.includes(FilterTag.ORIGINAL)) {
-                    setSelectedFilter(selectedFilter.filter(tag => tag !== FilterTag.NEW))
-                    return compatibleFilters
+                    compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.NEW)
                 }
                 compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.ORIGINAL)
             }
@@ -143,11 +145,11 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
         } else
             if (selectedFilter.includes(FilterTag.UNSELECTED)) {
                 if (selectedFilter.includes(FilterTag.SELECTED)) {
-                    setSelectedFilter(selectedFilter.filter(tag => tag !== FilterTag.UNSELECTED))
-                    return compatibleFilters
+                    compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.UNSELECTED)
                 }
                 compatibleFilters = compatibleFilters.filter(tag => tag !== FilterTag.SELECTED)
             }
+
         return compatibleFilters
     }, [selectedFilter])
 
@@ -192,6 +194,26 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
         </Box>
     ), [items, newItem])
 
+    const itemLabelEdit = useMemo(() => (
+        <TextInput
+            onChange={(e) => {
+                setNewItem({
+                    ...newItem,
+                    label: e.target.value,
+                    value: true
+                })
+            }}
+            onKeyUp={e => {
+                if (e.code === "Enter")
+                    setItems([...items, {
+                        ...newItem,
+                        id: `uuid-${items.length + 1}`
+                    }])
+            }}
+        />
+
+    ), [items, newItem])
+
     const renderChip = useCallback((selection: string) => (
         <Button
             key={`chip-${selection}`
@@ -228,7 +250,7 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
                     style={{ width: "15%" }}
                 >{" Filters: "}</Text>
                 <SelectMultiple
-                    style={{ flexGrow: 3, minHeight: "40px" }}
+                    style={{ flexGrow: 2, minHeight: "40px" }}
                     valueLabel={option => (
                         <Box wrap direction="row" width="medium">{
                             option.map((i: string) =>
@@ -246,89 +268,96 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
                 />
 
             </Box>
+            <Box overflow={"auto"} ref={tableBoxRef} >
+                <Scrollbars
+                    thumbMinSize={10}
+                    style={{
+                        width: (tableBoxRef.current as unknown as HTMLDivElement)?.offsetWidth || "600px",
+                        height: (tableBoxRef.current as unknown as HTMLDivElement)?.offsetHeight || "300px",
 
-            <DataTable
-                columns={[
-                    {
-                        property: "id",
-                        size: "20%",
-                        align: "center",
-                        header: <Text>{"uuid"}</Text>,
-                        render: ({ addItemElement, id }) =>
-                            <>{
-                                addItemElement ||
-                                <Text>{id}</Text>
-                            }</>
-                    },
-                    {
-                        property: "checkbox",
-                        size: "5%",
-                        header: <CheckBox onChange={onCheckAll} />,
-                        render: ({ checkboxElement, id }) =>
-                            <>{
-                                checkboxElement ||
-                                <CheckBox
-                                    key={id}
-                                    checked={isChecked(id)}
-                                    onChange={(e) => { onCheck(e.target.checked, id) }}
-                                />
-                            }</>,
-                        sortable: false,
-                    },
-                    {
-                        property: "label",
-                        header: <Text>{"Task"}</Text>,
-                        render: ({ id, label, labelElement }) =>
-                            <>{
-                                labelElement ||
-                                    isDone(id)
-                                    ? <Text
-                                        style={{
-                                            backgroundColor: "black",
-                                            borderRadius: "10px",
-                                            paddingLeft: "10px"
-                                        }}
-                                    >{label}</Text>
-                                    : (<Text>{label}</Text>)
-                            }</>
-                    },
-                    {
-                        property: "done",
-                        size: "5%",
-                        header: (<Text>{"Done"}</Text>),
-                        render: ({ id, doneElement }) =>
-                            <>{
-                                doneElement ||
-                                <CheckBox
-                                    key={id}
-                                    checked={isDone(id)}
-                                    onChange={(e) => { onDone(e, id) }}
-                                />
-                            }</>,
-                        sortable: false,
-                        align: "center"
-                    },
-                ]}
-                data={
-                    [
-                        {
-                            addItemElement: AddBtn,
-                            checkboxElement: <CheckBox disabled checked />,
-                            labelElement: <TextInput
-                                onChange={(e) => {
-                                    setNewItem({
-                                        ...newItem,
-                                        label: e.target.value,
-                                        value: true
-                                    })
-                                }} />,
-                            doneElement: <CheckBox disabled checked={false} />
-                        },
-                        ...getFilteredItems()
-                    ] as ItemRow[]
+                    }} >
+                    <DataTable
+                        style={{
+                            marginRight: "10px"
+                        }}
+                        columns={[
+                            {
+                                property: "id",
+                                size: "20%",
+                                align: "center",
+                                header: <Text>{"uuid"}</Text>,
+                                render: ({ addItemElement, id }) =>
+                                    <>{
+                                        addItemElement ||
+                                        <Text>{id}</Text>
+                                    }</>
+                            },
+                            {
+                                property: "checkbox",
+                                size: "5%",
+                                header: <CheckBox onChange={onCheckAll} />,
+                                render: ({ checkboxElement, id }) =>
+                                    <>{
+                                        checkboxElement ||
+                                        <CheckBox
+                                            key={id}
+                                            checked={isChecked(id)}
+                                            onChange={(e) => { onCheck(e.target.checked, id) }}
+                                        />
+                                    }</>,
+                                sortable: false,
+                            },
+                            {
+                                property: "label",
+                                header: <Text>{"Task"}</Text>,
+                                render: ({ id, label, labelElement }) =>
+                                    <>{
+                                        labelElement || (
 
-                }
-            />
+                                            isDone(id)
+                                                ? <Text
+                                                    style={{
+                                                        backgroundColor: "black",
+                                                        borderRadius: "10px",
+                                                        paddingLeft: "10px"
+                                                    }}
+                                                >{label}</Text>
+                                                : (<Text>{label}</Text>)
+                                        )
+                                    }</>
+                            },
+                            {
+                                property: "done",
+                                size: "5%",
+                                header: (<Text>{"Done"}</Text>),
+                                render: ({ id, doneElement }) =>
+                                    <>{
+                                        doneElement ||
+                                        <CheckBox
+                                            key={id}
+                                            checked={isDone(id)}
+                                            onChange={(e) => { onDone(e, id) }}
+                                        />
+                                    }</>,
+                                sortable: false,
+                                align: "center"
+                            },
+                        ]}
+                        data={
+                            [
+                                {
+                                    addItemElement: AddBtn,
+                                    checkboxElement: <CheckBox disabled checked />,
+                                    labelElement: itemLabelEdit,
+                                    doneElement: <CheckBox disabled checked={false} />
+                                },
+                                ...getFilteredItems()
+                            ] as ItemRow[]
+
+                        }
+                    />
+                </Scrollbars>
+            </Box>
         </>
 
     )
