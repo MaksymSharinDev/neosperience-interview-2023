@@ -1,0 +1,50 @@
+html {
+    /* To make use of full height of page*/
+    min-height: 100%;
+    margin: 0;
+    background-color: white;
+}
+
+body {
+    min-height: 100vh;
+    min-width: 100vw;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    align-content: center;
+    justify-content: center;
+}
+
+.wrapper {
+    width: clamp(640px, 75%, 1080px);
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.children {
+    margin: 10px;
+    padding: 10px;
+    border-color: black;
+    border: 2px solid;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.wrapper :nth-child(4):hover { 
+    border: solid blue 3px;
+    cursor: pointer;
+    
+}
+.wrapper :nth-child(4):active {
+    display: none;
+}
+
+
+@media screen and (max-width: 640px) {
+    .wrapper {
+        flex-wrap: wrap;
+    }
+}

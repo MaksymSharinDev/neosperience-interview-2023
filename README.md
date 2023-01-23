@@ -86,3 +86,19 @@ at the first working iteration;
   and we got a base to work upon, now for the functional side we reached the point 
   where different attempts to implement a tag system to conditionally render the records blocked the path, 
   that signalled to change the approach as i can smell an over-generalization antipattern, my strategy gonna be to revert my attempt to the previus commit of graphical readiness ( keeping some improvements done like enum of the filters ), and use a more harcoded but less coupled solution, a brownfield approach
+
+  <!---TODO: Grammar -->
+  Okey, i got it working with a cleaner code, two nice to have things are missing: the sticky behievior for add item row. and the hiding of Select All button, but as it is a groomet default, the example storybook for limited multi select is without this button, tried it but don't works, 
+  i wanted to hide it because cause the buggy behievior of letting the user select incompatible filters but meanwhile
+  i got a prettier scroolbar than default so I can say we are satisfied with the outcome,
+
+  regards css exercise, pretty straightforward flexbox shenanigans, my cool perks this time could be: using an iframe to keep the full viewport behievior intact. and a button to set it to 640px to show one of requirements in action, the another one is the use of :hover and :active pseudo elements for display-noning the fourth element.
+
+
+ok done what can be missing but are possible forards from this simple app:
+- implementation of js code execution and console output result
+- same for showup css code
+- editability of js css and maybe the react, the preview tech dependencies scene is mature for this
+- re-work item add to another UX pattern like the popular  "bottom right plus+ button"
+- inline editing of the item labels and the discard trash button
+- Live automated Testing / Tour Walktrhoug UX Pattern 

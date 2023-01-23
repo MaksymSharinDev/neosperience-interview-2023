@@ -244,7 +244,9 @@ const ExList = ({ uuid = "uuid-1" }: ExListProps) => {
 
     return (
         <>
-            <Heading size={'small'} level={3} textAlign='center' > {list.name} </Heading>
+            <Heading
+            style={{ margin: "5px"}}
+            size={'small'} level={3} textAlign='center' > {list.name} </Heading>
             <Box pad="small" align='center' direction='row' justify={'between'} >
                 <Text
                     style={{ width: "15%" }}
